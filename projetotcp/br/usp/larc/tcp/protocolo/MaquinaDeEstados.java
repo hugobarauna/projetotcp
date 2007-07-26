@@ -74,6 +74,16 @@ public class MaquinaDeEstados {
      */
     private String estadoMEConAtual;
     
+    /**
+     * Estado atual da máquina de transmissao
+     */
+    private String estadoMETX;
+    
+    /**
+     * Estado atual da máquina de recepcao
+     */
+    private String estadoMERX;
+    
     /** 
      * Constante que guarda o nmero de retransmisses de um segmeto TCP com
      * timestamp expirado.
@@ -138,6 +148,31 @@ public class MaquinaDeEstados {
      * utilizar o valor de 100 bytes
      */
     private int tamJanela = 100;
+    
+    /**
+     * Maximum Segment Size
+     */
+    private int MSS = 34;
+    
+    /**
+     * Buffer de transmissão de dados
+     */
+    private byte[] bufferTX = new byte[2 * this.tamJanela]; 
+    
+    /**
+     * Buffer de recepção de dados
+     */
+    private byte[] bufferRX = new byte[this.tamJanela];
+    
+    /**
+     * Ponteiro para o ultimo byte do buffer de transissao que foi enviado
+     */
+    private int numSeqTX = -1;
+    
+    /**
+     * Ponteiro para o último byte do buffer de trasmissao que recebeu um ACK (que foi reconhecido)
+     */
+    private int numSeqTXReconhecida = -1;
     
     /** Construtor da classe MaquinaDeEstados */
     public MaquinaDeEstados() {
@@ -295,6 +330,10 @@ public class MaquinaDeEstados {
     			// envia o pacote
     			enviaSegmentoTCP(pacoteTCP);
     		}
+    		else if(estadoMEConAtual.equals(TCPIF.ESTABLISHED))
+    		{
+    			this.trataTX();
+    		}
     	}
     	// se for Timeout
     	else if(primitiva == TCPIF.P_TIMEOUT)
@@ -318,6 +357,9 @@ public class MaquinaDeEstados {
 	    			// atualiza o frame
 	    			String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_SYN, pacoteTCP);
 	    			mef.atualizaDadosEstado(estadoMEConAtual, "Time Out" , "->", segmento);
+	    			// diminui em um o proximo numero de sequencia pois é uma retransmissão, e o numero de 
+	    			// sequência da retransmissão deve ser o mesmo do segmento original
+	    			this.proxNumSeq--;
 	    			// envia o pacote
 	    			enviaSegmentoTCP(pacoteTCP);
    	    		}
@@ -330,6 +372,9 @@ public class MaquinaDeEstados {
 	    			// atualiza o frame
 	    			String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_SYN_ACK, pacoteTCP);
 	    			mef.atualizaDadosEstado(estadoMEConAtual, "Time Out" , "->", segmento);
+	    			// diminui em um o proximo numero de sequencia pois é uma retransmissão, e o numero de 
+	    			// sequência da retransmissão deve ser o mesmo do segmento original
+	    			this.proxNumSeq--;
 	    			// envia o pacote
 	    			enviaSegmentoTCP(pacoteTCP);
    	    		}
@@ -342,6 +387,9 @@ public class MaquinaDeEstados {
 	    			// atualiza o frame
 	    			String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_FIN, pacoteTCP);
 	    			mef.atualizaDadosEstado(estadoMEConAtual, "Time Out" , "->", segmento);
+	    			// diminui em um o proximo numero de sequencia pois é uma retransmissão, e o numero de 
+	    			// sequência da retransmissão deve ser o mesmo do segmento original
+	    			this.proxNumSeq--;
 	    			// envia o pacote
 	    			enviaSegmentoTCP(pacoteTCP);
    	    		}
@@ -354,6 +402,9 @@ public class MaquinaDeEstados {
 	    			// atualiza o frame
 	    			String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_FIN, pacoteTCP);
 	    			mef.atualizaDadosEstado(estadoMEConAtual, "Time Out" , "->", segmento);
+	    			// diminui em um o proximo numero de sequencia pois é uma retransmissão, e o numero de 
+	    			// sequência da retransmissão deve ser o mesmo do segmento original
+	    			this.proxNumSeq--;
 	    			// envia o pacote
 	    			enviaSegmentoTCP(pacoteTCP);
    	    		}
@@ -996,8 +1047,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			break;
 		}
 		
-		// TODO checar se o num de sequencia só aumenta quando não for ACK
-		// TODO checar se essa conta do proxNumSqe está correta
+
 //		if(pacote.getDados().getBytes().length == 0) // vai enviar um segmento de controle, sem nada no campo dados
 //			this.proxNumSeq++;
 //		else 
@@ -1045,5 +1095,12 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 		
 		return segmento;
 	}
-
+	
+	private void trataTX(){
+		
+	}
+	
+	private void trataRX(){
+		
+	}
 }//fim da classe MaquinaDeEstados 2006
