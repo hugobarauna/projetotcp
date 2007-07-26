@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE attributes PUBLIC "-//NetBeans//DTD DefaultAttributes 1.0//EN" "http://www.netbeans.org/dtds/attributes-1_0.dtd">
+<attributes version="1.0">
+    <fileobject name="protocolo">
+        <attr name="OpenIDE-Folder-Order" stringvalue="TCPIF.java/ConexaoTCP.java/Decoder.java/TabelaDeConexoes.java/Monitor.java/MaquinaDeEstados.java/ProtocoloTCP.java"/>
+    </fileobject>
+    <fileobject name="aplicacao">
+        <attr name="OpenIDE-Folder-Order" stringvalue="MonitorFrame.java/MaquinaDeEstadosFrame.java/IpSimuladaFrame.java"/>
+    </fileobject>
+</attributes>
