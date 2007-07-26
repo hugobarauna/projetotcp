@@ -150,7 +150,8 @@ public class MaquinaDeEstados {
     private int tamJanela = 100;
     
     /**
-     * Maximum Segment Size
+     * Maximum Segment Size. Coloquei esse valor apenar para haver segmentação na hora de transmitir dados. Mas
+     * poderia ser outro valors
      */
     private int MSS = 34;
     
