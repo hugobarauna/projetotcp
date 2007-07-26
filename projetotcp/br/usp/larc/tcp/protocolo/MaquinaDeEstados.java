@@ -1007,13 +1007,12 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 	
 	
 	/**
-	 * Este metodo e usado no controle de sequencializao, no contexto de envio de segmentos, para duas coisas:<br/>
-	 * 1. Criar a String que deve ser mostrada no campo segmento no diagrama de tempos da MaquinaDeEstadosFrame<br/>
-	 * 2. Atualizar os seguintes atributos de controle de sequncia: proxNumSeq e numAck
+	 * Este metodo e usado no controle de sequencializao, no contexto de envio de segmentos, para uma coisa:<br/>
+	 * 1. Criar a String que deve ser mostrada no campo segmento no diagrama de tempos da MaquinaDeEstadosFrame
 	 * @param tipoSegmento O tipo do segmento, ex.: SYN, ACK, SYN+ACK. Este tipo deve ser representado usando as
 	 * constantes da interface TCPIF
-	 * @param pacote O pacote TCP que  passado para o mtodo. Usado para tirar algumas informaes do pacote, 
-	 * como tamanho
+	 * @param pacote O pacote TCP que e passado para o metodo. Usado para tirar algumas informacoes do pacote, 
+	 * como por exemplo, tamanho
 	 * @return Retorna uma String formatada para ser apresentada no campo Segmento do diagrama de tempos da MaquinaDeEstadosFrame
 	 */
 	private String atualizaSequencializacaoEnvio(byte tipoSegmento, PacoteTCP pacote)
@@ -1048,14 +1047,19 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			break;
 		}
 		
-
-//		if(pacote.getDados().getBytes().length == 0) // vai enviar um segmento de controle, sem nada no campo dados
-//			this.proxNumSeq++;
-//		else 
-//			this.proxNumSeq += pacote.getDados().getBytes().length;
 		return segmento;
 	}
 	
+	/**
+	 * Este metodo e usado no controle de sequencializao, no contexto de recepcao de segmentos, para uma coisa:<br/>
+	 * 1. Criar a String que deve ser mostrada no campo segmento no diagrama de tempos da MaquinaDeEstadosFrame<br/>
+	 * 2. Atualizar a variável que guarda o número de sequencia esperado (ACK)
+	 * @param tipoSegmento O tipo do segmento, ex.: SYN, ACK, SYN+ACK. Este tipo deve ser representado usando as
+	 * constantes da interface TCPIF
+	 * @param pacoteRecebido Pacote recebido. Usado para extrair informacoes que serao redenrizados no diagrama
+	 * de tempo
+	 * @return
+	 */
 	private String atualizaSegmentoRecepcao(byte tipoSegmento, PacoteTCP pacoteRecebido){
 		String segmento = "";
 		
