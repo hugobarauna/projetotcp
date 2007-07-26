@@ -3,22 +3,22 @@ package br.usp.larc.tcp.protocolo;
 /*
  * @(#)TCPIF.java	1.0 18/08/2006
  *
- * Copyleft (L) 2006 Laboratório de Arquitetura e Redes de Computadores
- * Escola Politécnica da Universidade de São Paulo.
+ * Copyleft (L) 2006 Laboratrio de Arquitetura e Redes de Computadores
+ * Escola Politcnica da Universidade de So Paulo.
  *
  */
 
 /** 
- * Interface que contém os principais eventos/estados do Protocolo TCP
- * Você deve adicionar/remover atributos nessa interface, se necessário.
+ * Interface que contm os principais eventos/estados do Protocolo TCP
+ * Voc deve adicionar/remover atributos nessa interface, se necessrio.
  * 
  *
- * @author	Laboratório de Arquitetura e Redes de Computadores.
+ * @author	Laboratrio de Arquitetura e Redes de Computadores.
  * @version	1.0 Agosto 2003.
  */
 public interface TCPIF {
     	
-        // Estados da conexão TCP de 200 a 209
+        // Estados da conexo TCP de 200 a 209
         public static final String CLOSED                   = "Closed";
         public static final String LISTEN                   = "Listen";
         public static final String SYNRCVD                  = "SynRcvd";
@@ -31,14 +31,20 @@ public interface TCPIF {
         public static final String TIMEWAIT                 = "TimeWait";
         public static final String LAST_ACK                 = "LastAck";
 
-        //Primitivas de 001 até 004 (relacionadas com o frame Monitor)
+        // Estados da maquina de transmissao
+        public static final String IDLE						= "Idle";
+        public static final String TRASMITTING				= "Transmitting";
+        public static final String WAITING_ACK				= "Waiting_ACK";
+        public static final String BLOCKED					= "Blocked";
+        
+        //Primitivas de 001 at 004 (relacionadas com o frame Monitor)
         public static final int P_TCP_OPEN                  = 000;
         public static final int P_TCP_CLOSE                 = 001;
         public static final int P_TCP_RESET                 = 002;
         public static final int P_TCP_OPEN_ME               = 003;
         public static final int P_TCP_CLOSE_ME              = 004;
 
-        //Primitivas de 100 ate 109 (relacionadas com o frame Máquina de Estado)
+        //Primitivas de 100 ate 109 (relacionadas com o frame Mquina de Estado)
         public static final byte P_NENHUM                   = 100;
         public static final byte P_PASSIVEOPEN              = 101;
         public static final byte P_CLOSE                    = 102;
