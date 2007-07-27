@@ -82,7 +82,7 @@ public class MaquinaDeEstados {
     /**
      * Estado atual da máquina de recepcao
      */
-    private String estadoMERX;
+    private String estadoMERX = TCPIF.RECEIVING;
     
     /** 
      * Constante que guarda o nmero de retransmisses de um segmeto TCP com
@@ -186,6 +186,10 @@ public class MaquinaDeEstados {
      */
     private int numBytesTransmitidos = 0;
     
+    /**
+     * Numero do total de bytes da mensagem a ser transmitida
+     */
+    private int tamanhoTotalMensagem;
     /**
      * Numero de bytes da mensagem de transmissao que ja foram transmitidos para o buffer.
      * Serve como ponteiro para a cadeia de bytes da mensagem
@@ -373,7 +377,12 @@ public class MaquinaDeEstados {
     		}
     		else if(estadoMEConAtual.equals(TCPIF.ESTABLISHED))
     		{
-    			this.trataTX();
+    			if(this.estadoMETX.equals(TCPIF.IDLE))
+    			{
+    				this.estadoMETX = TCPIF.TRASMITTING;
+    				this.tamanhoTotalMensagem = this.getMeFrame().getDados().getBytes().length;
+    				this.trataTX();
+    			}
     		}
     	}
     	// se for Timeout
@@ -610,6 +619,47 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     			enviaPrimitiva(TCPIF.P_TERMINATE, null);
     			
     			mef.atualizaDadosEstado(estadoMEConAtual, "Terminate" , ".", ".");
+    		}
+    		else if(estadoMEConAtual.equals(TCPIF.ESTABLISHED))
+    		{
+    			if(this.estadoMETX.equals(TCPIF.TRASMITTING))
+    			{
+    				if(this.pacoteRecebido.getJanela() == 0)
+    					this.estadoMETX = TCPIF.TX_BLOCKED;
+    				if(this.pacoteRecebido.getJanela() > 0)
+    					this.estadoMETX = TCPIF.TRASMITTING;
+    			}
+    			if(this.estadoMETX.equals(TCPIF.WAITING_ACK))
+    			{	
+    				if(this.pacoteRecebido.getJanela() == 0)
+    				{
+    					//TODO checar se isso está certo
+	    				// quer dizer que ele nao tem mais dados para transmitir
+	    				if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
+	    					this.estadoMETX = TCPIF.IDLE;
+	    				// faltam dados a serem transmitidos
+	    				else
+	    					this.estadoMETX = TCPIF.TX_BLOCKED;
+    				}
+    				if(this.pacoteRecebido.getJanela() > 0)
+    				{
+    					// se não faltam dados a serem transmitidos
+    					if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
+	    					this.estadoMETX = TCPIF.IDLE;
+    					// faltam dados a serem transmitidos
+    					else
+    						this.estadoMETX = TCPIF.TRASMITTING;
+    				}
+    			}
+    			if(this.estadoMETX.equals(TCPIF.TX_BLOCKED))
+    			{
+    				if(this.pacoteRecebido.getJanela() == 0)
+    					this.estadoMETX = TCPIF.TX_BLOCKED;
+    				else
+    					this.estadoMETX = TCPIF.TRASMITTING;
+    			}	
+    			
+    			this.trataTX();
     		}
     	}
         // se recebeu um SYN+ACK
@@ -1166,12 +1216,8 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 	 */
 	private void trataTX() throws Exception{
 		
-		// se o estado da maquina de conexao/desconexao for igual a established, significa que esta no comeco da
-		// transmissao de dados
-		if(this.estadoMEConAtual.equals(TCPIF.ESTABLISHED))
+		if(this.estadoMETX.equals(TCPIF.TRASMITTING))
 		{
-			// atualiza estado para transmitindo
-			this.estadoMETX = TCPIF.TRASMITTING;
 			// seta algumas variaveis necessarias a transmissao
 			int tamanhoMensagem = this.meFrame.getDados().getBytes().length;
 			byte[] mensagemBytes = this.meFrame.getDados().getBytes();
@@ -1204,7 +1250,6 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 					this.numSeqTX++;
 				}
 				
-				
 				// envia o segmento montado acima e atualiza a o diagrama de tempo da maquina de estados frame
 				PacoteTCP pacote = new PacoteTCP();
 				String dados = new String(dadosSegmentoTX);
@@ -1216,16 +1261,17 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     			this.meFrame.atualizaDadosEstado(estadoMETX, "." , "->", segmento);
 				this.enviaSegmentoTCP(pacote);
 			}
+		
+		// se todos os dados já foram transmitidos
+		if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
+			this.estadoMETX = TCPIF.WAITING_ACK;
 		}
 	}
 	
 	private void trataRX(){
 		
-		if(this.estadoMEConAtual.equals(TCPIF.ESTABLISHED))
-		{
-			// atualiza estado
-			this.estadoMERX = TCPIF.RECEIVING;
-			
+		if(this.estadoMERX.equals(TCPIF.RECEIVING))
+		{	
 			// inicializa algumas variaveis necessarias para controlar a recepcao de dados
 			int tamanhoDados = this.pacoteRecebido.getDados().getBytes().length;
 			byte[] mensagemBytes = this.pacoteRecebido.getDados().getBytes();
