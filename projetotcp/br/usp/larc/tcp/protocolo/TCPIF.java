@@ -35,7 +35,11 @@ public interface TCPIF {
         public static final String IDLE						= "Idle";
         public static final String TRASMITTING				= "Transmitting";
         public static final String WAITING_ACK				= "Waiting_ACK";
-        public static final String BLOCKED					= "Blocked";
+        public static final String TX_BLOCKED					= "Blocked";
+        
+        // Estados da maquina de recepcao
+        public static final String RX_BLOCKED				= "Blocked";
+        public static final String RECEIVING				= "Receiving";
         
         //Primitivas de 001 at 004 (relacionadas com o frame Monitor)
         public static final int P_TCP_OPEN                  = 000;
@@ -79,5 +83,8 @@ public interface TCPIF {
         public static final byte S_URG                      = 0x20;
         public static final byte S_PSH                      = 0x8;
         public static final byte S_RST                      = 0x4;
-
+        
+        // Constantes usadas para representar o estado da maquina de transmissao/recepcao em byte
+        public static final byte S_TX                       = 0x21;
+        public static final byte S_RX                       = 0x22;
 }//fim da interface TCPIF 2006

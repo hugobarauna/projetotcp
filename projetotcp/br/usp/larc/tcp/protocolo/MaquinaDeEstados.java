@@ -77,7 +77,7 @@ public class MaquinaDeEstados {
     /**
      * Estado atual da máquina de transmissao
      */
-    private String estadoMETX;
+    private String estadoMETX = TCPIF.IDLE;
     
     /**
      * Estado atual da máquina de recepcao
@@ -166,7 +166,7 @@ public class MaquinaDeEstados {
     private byte[] bufferRX = new byte[this.tamJanela];
     
     /**
-     * Ponteiro para o ultimo byte do buffer de transissao que foi enviado
+     * Ponteiro para o ultimo byte do buffer de transmissao que foi enviado
      */
     private int numSeqTX = -1;
     
@@ -174,6 +174,40 @@ public class MaquinaDeEstados {
      * Ponteiro para o último byte do buffer de trasmissao que recebeu um ACK (que foi reconhecido)
      */
     private int numSeqTXReconhecida = -1;
+    
+    /**
+     * Guarda o valor do ultimo byte transmitido na ultima transmissao. Nao tem aplicacao direta no
+     * protocolo, e apenas uma variavel auxiliar no processo de transmissao de dados
+     */
+    private int numSeqTXAuxiliar = 0;
+    
+    /**
+     * Número de bytes que foram transmitidos do buffer de transmissao
+     */
+    private int numBytesTransmitidos = 0;
+    
+    /**
+     * Numero de bytes da mensagem de transmissao que ja foram transmitidos para o buffer.
+     * Serve como ponteiro para a cadeia de bytes da mensagem
+     */
+    private int numBytesBufferrizados = 0;    
+    
+//    /**
+//     * Dados a serem transmitidos em um segmento
+//     */
+//    private byte[] dadosSegmentoTX;
+    
+    /**
+     * Numero do ultimo byte da cadeia de dados lido do buffer para o a camada de aplicacao.
+     * Usado pela maquina de recepcao de dados
+     */
+    private int ultimoByteLido = -1;
+    
+    /**
+     * Numero do ultimo bytena cadeia de dados que chegou da rede e foi colocado no buffer de recepcao.
+     * Usado pela maquina de recepcao de dados
+     */
+    private int ultimoByteRecebido = -1;
     
     /** Construtor da classe MaquinaDeEstados */
     public MaquinaDeEstados() {
@@ -688,6 +722,11 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     			mef.atualizaDadosEstado(estadoMEConAtual, "Error" , ".", ".");
         	}
         }
+    	// recebeu dados
+        else
+        {
+        	this.trataRX();
+        }
     	
     	if( ipSimuladoDestino == null || ipSimuladoDestino.isEmpty() )
     	{
@@ -760,8 +799,8 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     	// TODO - opes do TCP
     	pacoteDeEnvio.setOpcoes(0);
     	pacoteDeEnvio.geraOpcoes();
-    	// dados do tcp - vem da chamada dessa funo
-    	pacoteDeEnvio.setDados(mef.getDados());
+    	// dados do tcp ja foram setado na maquina de transmissao, metodo trataTX() 
+    	//pacoteDeEnvio.setDados(mef.getDados());
     	
     	// poe o numero de sequencia
     	pacoteDeEnvio.setNumSequencia(this.proxNumSeq);
@@ -1043,6 +1082,10 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			segmento = "SYNACK" + "(" +  this.proxNumSeq + "," +  pacote.getTamanhoSegementoBytes();
 			segmento += "," + this.numAck + "," + this.tamJanela + ")";
 			break;
+		case TCPIF.S_TX:
+			segmento = "TX" + "(" +  this.proxNumSeq + "," +  pacote.getTamanhoSegementoBytes();
+			segmento += "," + "0" + "," + this.tamJanela + ")";
+			break;
 		default:
 			break;
 		}
@@ -1089,6 +1132,10 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			segmento = "SYNACK" + "(" +  pacoteRecebido.getNumSequencia() + "," +  tamanhoPacote;
 			segmento += "," + pacoteRecebido.getNumAck() + "," + pacoteRecebido.getJanela() + ")";
 			break;
+		case TCPIF.S_RX:
+			segmento = "RX" + "(" +  pacoteRecebido.getNumSequencia() + "," +  tamanhoPacote;
+			segmento += "," + "0" + "," + pacoteRecebido.getJanela() + ")";
+			break;
 		default:
 			break;
 		}
@@ -1101,11 +1148,94 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 		return segmento;
 	}
 	
-	private void trataTX(){
+	/**
+	 * Método que implementa a maquina de estados do protocolo de transmissao de dados sobre segmentos TCP
+	 *
+	 */
+	private void trataTX() throws Exception{
 		
+		// se o estado da maquina de conexao/desconexao for igual a established, significa que esta no comeco da
+		// transmissao de dados
+		if(this.estadoMEConAtual.equals(TCPIF.ESTABLISHED))
+		{
+			// atualiza estado para transmitindo
+			this.estadoMETX = TCPIF.TRASMITTING;
+			// seta algumas variaveis necessarias a transmissao
+			int tamanhoMensagem = this.meFrame.getDados().getBytes().length;
+			byte[] mensagemBytes = this.meFrame.getDados().getBytes();
+			// estou considerando aqui que o cabeçalho TCP sempre terá 24 bytes, baseado no contrutor da 
+			// classe PacoteTCP
+			// esta variavel guarda o numero maximo de bytes que o semento TCP pode carregar como dados 
+			int espacoDados = this.MSS - 24;
+			
+			
+			// copia a mensagem iteira para o buffer, acreditando que a mensagem ira caber inteiramente no buffer
+			while(this.numBytesBufferrizados < tamanhoMensagem)
+			{
+				this.bufferTX[this.numBytesBufferrizados] = mensagemBytes[this.numBytesBufferrizados];
+				this.numBytesBufferrizados++;
+			}
+			
+			byte[] dadosSegmentoTX = new byte[espacoDados];
+			// transmite segmentos enquanto o numero de bytes transmitidos for menor que numero de bytes 
+			// da mensagem total e enquanto o numero de bytes transmitidos for menor que a janela de recepcao
+			// TODO implementar depois suporte a transmissao de mensagems maiores que a janela de recepcao (FASE 5)
+			while((this.numSeqTX + 1) < this.tamJanela && (this.numSeqTX + 1)< tamanhoMensagem)
+			{	
+				// monta os dados para serem enviado por um segmento
+				// continua montando até o espaço para dados do segmento encher
+				// ou até o número de bytes da mensagem inteira se esgotar
+				for(int i = 0; i < espacoDados && (this.numSeqTX + 1) < tamanhoMensagem ; i++)
+				{	
+					dadosSegmentoTX[i] = this.bufferTX[i];
+					this.numSeqTX++;
+				}
+				
+				
+				// envia o segmento montado acima e atualiza a o diagrama de tempo da maquina de estados frame
+				PacoteTCP pacote = new PacoteTCP();
+				String dados = new String(dadosSegmentoTX);
+				dados = dados.substring(this.numSeqTXAuxiliar, this.numSeqTX + 1);
+				this.numSeqTXAuxiliar = this.numSeqTX + 1;
+				pacote.setDados(dados);
+				String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_TX, pacote);
+    			this.meFrame.atualizaDadosEstado(estadoMETX, "." , "->", segmento);
+				this.enviaSegmentoTCP(pacote);
+			}
+		}
 	}
 	
 	private void trataRX(){
 		
+		if(this.estadoMEConAtual.equals(TCPIF.ESTABLISHED))
+		{
+			// atualiza estado
+			this.estadoMERX = TCPIF.RECEIVING;
+			
+			// inicializa algumas variaveis necessarias para controlar a recepcao de dados
+			int tamanhoDados = this.pacoteRecebido.getDados().getBytes().length;
+			byte[] mensagemBytes = this.pacoteRecebido.getDados().getBytes();
+			
+			// copia segmento recebido para o buffer de recepção
+			// esse +1 na condição do while é porque o atributo ultimoByteRecebido começa com -1
+			while(this.ultimoByteRecebido + 1 < tamanhoDados)
+			{	
+				this.ultimoByteRecebido++;
+				this.bufferRX[this.ultimoByteRecebido] = mensagemBytes[this.ultimoByteRecebido];
+			}
+			
+			// copia dados do segmento recebido para a camada de aplicação
+			// TODO essa passagem de dados para camada de aplicacao vai mudar depois, quando implementarmos o 
+			// timeout de entrega para aplicacao (fase 5)
+			String mensagem = new String(this.bufferRX);
+			mensagem = mensagem.substring(this.ultimoByteLido + 1, this.ultimoByteRecebido + 1);
+			
+			String textoSegmento = this.atualizaSegmentoRecepcao(TCPIF.S_RX, this.pacoteRecebido);
+			this.meFrame.atualizaDadosEstado(estadoMEConAtual, "." , "<-", textoSegmento);
+			
+			String dados = this.meFrame.getDados();
+			dados = dados.concat(mensagem);
+			this.meFrame.setDadosRecebidos(dados);
+		}
 	}
 }//fim da classe MaquinaDeEstados 2006
