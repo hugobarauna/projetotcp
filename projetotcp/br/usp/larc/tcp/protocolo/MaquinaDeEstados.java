@@ -455,6 +455,7 @@ public class MaquinaDeEstados {
     			// envia primitiva Error para a camada de aplicao
     			this.enviaPrimitiva(TCPIF.P_ERROR, null);
     			// atualiza frame
+    			this.proxNumSeq++;
     			String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_RST, pacoteTCP);
     			mef.atualizaDadosEstado(estadoMEConAtual, "Error" , "->", segmento);
     			// pe um RST no byte de controle
