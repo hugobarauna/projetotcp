@@ -144,11 +144,16 @@ public class MaquinaDeEstados {
     private int numSeqNaoConfirmado = 0;
     
     /**
-     * Tamanho da janela destino. O usuário pode mudar manualmente o valor dessa janela, mas por default vamos 
+     * Tamanho da janela de recepcao do receptor remoto. Por default, coloquei 100 bytes, mas na verdade o receptor
+     * avisa o valor dessa varivavel atraves do campo janela de recepcao do cabecalho TCP
+     */
+    private int tamJanelaRemota = 100;
+    
+    /**
+     * Tamanho da janela de recepcao. O usuário pode mudar manualmente o valor dessa janela, mas por default vamos 
      * utilizar o valor de 100 bytes
      */
-    private int tamJanela = 100;
-    
+    private int tamJanelaRecepcao = 100;
     /**
      * Maximum Segment Size. Coloquei esse valor apenar para haver segmentação na hora de transmitir dados. Mas
      * poderia ser outro valors
@@ -158,12 +163,13 @@ public class MaquinaDeEstados {
     /**
      * Buffer de transmissão de dados
      */
-    private byte[] bufferTX = new byte[2 * this.tamJanela]; 
+    private byte[] bufferTX = new byte[2 * this.tamJanelaRemota]; 
     
     /**
      * Buffer de recepção de dados
      */
-    private byte[] bufferRX = new byte[this.tamJanela];
+    //private byte[] bufferRX = new byte[this.tamJanelaRecepcao];
+    private byte[] bufferRX = new byte[2 * this.tamJanelaRecepcao];
     
     /**
      * Ponteiro para o ultimo byte do buffer de transmissao que foi enviado
@@ -848,7 +854,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     	// TODO - pe o Controle
     	//pacoteDeEnvio.setControle((short)0) ;
     	// TODO - pe a janela
-    	pacoteDeEnvio.setJanela(this.tamJanela);
+    	pacoteDeEnvio.setJanela(this.tamJanelaRecepcao);
     	// pe o checksum
     	pacoteDeEnvio.setChecksum(0);
     	// pe o ponteiro de dados urgentes
@@ -1126,27 +1132,27 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 		switch (tipoSegmento) {
 		case TCPIF.S_SYN:
 			segmento = "SYN" + "(" +  this.proxNumSeq + "," +  pacote.getTamanhoSegementoBytes();
-			segmento += "," + "0" + "," + this.tamJanela + ")";
+			segmento += "," + "0" + "," + this.tamJanelaRecepcao + ")";
 			break;
 		case TCPIF.S_FIN:
 			segmento = "FIN" + "(" +  this.proxNumSeq + "," +  pacote.getTamanhoSegementoBytes();
-			segmento += "," + "0" + "," + this.tamJanela + ")";
+			segmento += "," + "0" + "," + this.tamJanelaRecepcao + ")";
 			break;
 		case TCPIF.S_RST:
 			segmento = "RST" + "(" +  this.proxNumSeq + "," +  pacote.getTamanhoSegementoBytes();
-			segmento += "," + "0" + "," + this.tamJanela + ")";
+			segmento += "," + "0" + "," + this.tamJanelaRecepcao + ")";
 			break;
 		case TCPIF.S_ACK:
 			segmento = "ACK" + "(" +  this.proxNumSeq + "," +  pacote.getTamanhoSegementoBytes();
-			segmento += "," + this.numAck + "," + this.tamJanela + ")";
+			segmento += "," + this.numAck + "," + this.tamJanelaRecepcao + ")";
 			break;
 		case TCPIF.S_SYN_ACK:
 			segmento = "SYNACK" + "(" +  this.proxNumSeq + "," +  pacote.getTamanhoSegementoBytes();
-			segmento += "," + this.numAck + "," + this.tamJanela + ")";
+			segmento += "," + this.numAck + "," + this.tamJanelaRecepcao + ")";
 			break;
 		case TCPIF.S_TX:
 			segmento = "TX" + "(" +  this.proxNumSeq + "," +  pacote.getTamanhoSegementoBytes();
-			segmento += "," + "0" + "," + this.tamJanela + ")";
+			segmento += "," + "0" + "," + this.tamJanelaRecepcao + ")";
 			break;
 		default:
 			break;
@@ -1236,9 +1242,10 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			
 			byte[] dadosSegmentoTX = new byte[espacoDados];
 			// transmite segmentos enquanto o numero de bytes transmitidos for menor que numero de bytes 
-			// da mensagem total e enquanto o numero de bytes transmitidos for menor que a janela de recepcao
+			// da mensagem total e enquanto o numero de bytes transmitidos for menor que a janela de recepcao do
+			// receptor remoto
 			// TODO implementar depois suporte a transmissao de mensagems maiores que a janela de recepcao (FASE 5)
-			while((this.numSeqTX + 1) < this.tamJanela && (this.numSeqTX + 1)< tamanhoMensagem)
+			while((this.numSeqTX + 1) < this.tamJanelaRemota && (this.numSeqTX + 1)< tamanhoMensagem)
 			{	
 				// monta os dados para serem enviado por um segmento
 				// continua montando até o espaço para dados do segmento encher
@@ -1269,6 +1276,14 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 	}
 	
 	private void trataRX(){
+		
+		// buffer de recepcao 100% cheio
+		// implementar depois
+//		if(this.ultimoByteRecebido - this.ultimoByteLido == this.bufferRX.length)
+//		{
+//			this.estadoMERX = TCPIF.RX_BLOCKED;
+//			PacoteTCP pacote = new PacoteTCP;
+//		}
 		
 		if(this.estadoMERX.equals(TCPIF.RECEIVING))
 		{	
