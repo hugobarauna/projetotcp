@@ -90,6 +90,7 @@ public class PacoteTCP {
         this.janela             = new CampoTCP(2);
         this.ponteiroUrgente    = new CampoTCP(2);
         this.opcoes             = new CampoTCP(4);
+        this.setDados("");
     }
 
     /** Construtor do pacote.
