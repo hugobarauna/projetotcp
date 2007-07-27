@@ -209,6 +209,12 @@ public class MaquinaDeEstados {
      */
     private int ultimoByteRecebido = -1;
     
+    /**
+     * Guarda o valor do ultimo byte recebido na ultima recepcao. Nao tem aplicacao direta no
+     * protocolo, e apenas uma variavel auxiliar no processo de recepcao de dados
+     */
+    private int numSeqRXAuxiliar = 0;
+    
     /** Construtor da classe MaquinaDeEstados */
     public MaquinaDeEstados() {
     }
@@ -742,7 +748,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     	}
     	
-    	mef.atualizaDadosRecebidos(pacoteRecebido.getDados());
+//    	mef.atualizaDadosRecebidos(pacoteRecebido.getDados());
     	
        //implemente aqui o tratamento do recebimento do pacote
     }
@@ -806,10 +812,15 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     	// poe o numero de sequencia
     	pacoteDeEnvio.setNumSequencia(this.proxNumSeq);
     	//atualiza o numero de sequencia
-    	if(mef.getDados().getBytes().length == 0)
+//    	if(mef.getDados().getBytes().length == 0)
+//    		this.proxNumSeq++;
+//    	else
+//    		this.proxNumSeq += mef.getDados().getBytes().length;
+    	
+    	if(_pacoteTCP.getDados().getBytes().length == 0)
     		this.proxNumSeq++;
     	else
-    		this.proxNumSeq += mef.getDados().getBytes().length;
+    		this.proxNumSeq += _pacoteTCP.getDados().getBytes().length;
     	
     	// poe o numero de ack. Caso não esteja mandando um segmento do tipo ACK, devemos renderizar na tela 
     	// ACK igual a 0, naquela diagrama de tempos da maquina de estado frame
@@ -1186,9 +1197,10 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 				// monta os dados para serem enviado por um segmento
 				// continua montando até o espaço para dados do segmento encher
 				// ou até o número de bytes da mensagem inteira se esgotar
-				for(int i = 0; i < espacoDados && (this.numSeqTX + 1) < tamanhoMensagem ; i++)
+				int i;
+				for(i = 0; i < espacoDados && (this.numSeqTX + 1) < tamanhoMensagem ; i++)
 				{	
-					dadosSegmentoTX[i] = this.bufferTX[i];
+					dadosSegmentoTX[i] = this.bufferTX[this.numSeqTX + 1];
 					this.numSeqTX++;
 				}
 				
@@ -1196,7 +1208,8 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 				// envia o segmento montado acima e atualiza a o diagrama de tempo da maquina de estados frame
 				PacoteTCP pacote = new PacoteTCP();
 				String dados = new String(dadosSegmentoTX);
-				dados = dados.substring(this.numSeqTXAuxiliar, this.numSeqTX + 1);
+	//			dados = dados.substring(this.numSeqTXAuxiliar, this.numSeqTX + 1);
+				dados = dados.substring(0, i);
 				this.numSeqTXAuxiliar = this.numSeqTX + 1;
 				pacote.setDados(dados);
 				String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_TX, pacote);
@@ -1219,22 +1232,24 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			
 			// copia segmento recebido para o buffer de recepção
 			// esse +1 na condição do while é porque o atributo ultimoByteRecebido começa com -1
-			while(this.ultimoByteRecebido + 1 < tamanhoDados)
+//			while(this.ultimoByteRecebido + 1 < tamanhoDados)
+			for(int i = 0; i < tamanhoDados; i++)
 			{	
 				this.ultimoByteRecebido++;
-				this.bufferRX[this.ultimoByteRecebido] = mensagemBytes[this.ultimoByteRecebido];
+				this.bufferRX[this.ultimoByteRecebido] = mensagemBytes[i];
 			}
 			
 			// copia dados do segmento recebido para a camada de aplicação
 			// TODO essa passagem de dados para camada de aplicacao vai mudar depois, quando implementarmos o 
 			// timeout de entrega para aplicacao (fase 5)
 			String mensagem = new String(this.bufferRX);
-			mensagem = mensagem.substring(this.ultimoByteLido + 1, this.ultimoByteRecebido + 1);
-			
+//			mensagem = mensagem.substring(this.ultimoByteLido + 1, this.ultimoByteRecebido + 1);
+			mensagem = mensagem.substring(this.numSeqRXAuxiliar, this.ultimoByteRecebido + 1);
+			this.numSeqRXAuxiliar = this.ultimoByteRecebido + 1;
 			String textoSegmento = this.atualizaSegmentoRecepcao(TCPIF.S_RX, this.pacoteRecebido);
 			this.meFrame.atualizaDadosEstado(estadoMEConAtual, "." , "<-", textoSegmento);
 			
-			String dados = this.meFrame.getDados();
+			String dados = this.meFrame.getDadosRecebidos();
 			dados = dados.concat(mensagem);
 			this.meFrame.setDadosRecebidos(dados);
 		}

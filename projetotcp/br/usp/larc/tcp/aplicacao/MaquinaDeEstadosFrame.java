@@ -103,7 +103,7 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
         jLabel1 = new javax.swing.JLabel();
 
         getContentPane().setLayout(null);
-
+        
         setResizable(false);
         addWindowListener(new java.awt.event.WindowAdapter() {
             public void windowClosing(java.awt.event.WindowEvent evt) {
@@ -523,10 +523,10 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
     
     
     // TODO
-    public void atualizaDadosRecebidos(String _dados)
-    {
-    	jTextAreaDadosRecebidos.setText(_dados);
-    }
+//    public void atualizaDadosRecebidos(String _dados)
+//    {
+//    	jTextAreaDadosRecebidos.setText(_dados);
+//    }
     
     // TODO
     public String getDados()
@@ -538,7 +538,12 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
     {
     	this.jTextAreaDadosRecebidos.setText(dadosRecebidos);
     }
-
+    
+    public String getDadosRecebidos()
+    {
+    	return this.jTextAreaDadosRecebidos.getText();
+    }
+    
     /**
      * @param args the command line arguments
      */
