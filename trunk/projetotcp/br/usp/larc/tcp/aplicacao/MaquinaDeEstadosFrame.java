@@ -534,6 +534,10 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
     	return jTextAreaDadosEnviados.getText();
     }
     
+    public void setDadosRecebidos(String dadosRecebidos)
+    {
+    	this.jTextAreaDadosRecebidos.setText(dadosRecebidos);
+    }
 
     /**
      * @param args the command line arguments
