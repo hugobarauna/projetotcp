@@ -240,6 +240,7 @@ public class MaquinaDeEstados {
         this.meFrame.atualizaInfoConexao(this.estadoMEConAtual, 
             this.getIpSimuladoLocalBytePonto(),
             Integer.toString(this.portaLocal),  "null",  "null");
+        
     }
 
     /** 
@@ -588,7 +589,6 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     			
     			mef.atualizaDadosEstado(estadoMEConAtual, "O. Sucess" , ".", ".");
     			
-    			// TODO: celso
     			TabelaDeConexoes tab = monitor.getTabelaDeConexoes();
     			ConexaoTCP ctcp = (ConexaoTCP)tab.get(this.getIdConexao());
     			ctcp.setIpSimuladoRemoto(this.ipSimuladoDestino);
@@ -801,7 +801,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     	{
     		mef.atualizaInfoConexao(estadoMEConAtual, Decoder.ipSimuladoToBytePonto(ipSimuladoLocal) , portaLocal + "", 
 
-Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
+    		Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     	}
     	
 //    	mef.atualizaDadosRecebidos(pacoteRecebido.getDados());
