@@ -401,6 +401,9 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
         jPanel7.setBounds(10, 500, 570, 20);
 
         pack();
+        
+
+        
     }//GEN-END:initComponents
 
     private void jButtonEnviarActionPerformed(java.awt.event.ActionEvent evt) {//GEN-FIRST:event_jButtonEnviarActionPerformed
@@ -514,7 +517,8 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
                 buffer.append(", -, - )");
                 
             }
-
+            
+            jTextFieldHost.setText(_IPSimuladoLocal);
             jLabelnformacoesConexao.setText(buffer.toString());
           
     }
