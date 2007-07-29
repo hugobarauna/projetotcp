@@ -169,7 +169,6 @@ public class MaquinaDeEstados {
     /**
      * Buffer de recepÃ§Ã£o de dados
      */
-    //private byte[] bufferRX = new byte[this.tamJanelaRecepcao];
     private byte[] bufferRX = new byte[2 * this.tamJanelaRecepcao];
     
     /**
@@ -228,6 +227,11 @@ public class MaquinaDeEstados {
      */
     private int numSeqRXAuxiliar = 0;
     
+    
+    
+    private int inicioBufferRX = -1;
+    private int fimBufferRX = 0;
+    
     /** Construtor da classe MaquinaDeEstados */
     public MaquinaDeEstados() {
     }
@@ -243,6 +247,7 @@ public class MaquinaDeEstados {
         this.meFrame.atualizaInfoConexao(this.estadoMEConAtual, 
             this.getIpSimuladoLocalBytePonto(),
             Integer.toString(this.portaLocal),  "null",  "null");
+        meFrame.setEstadoTX(TCPIF.IDLE);
         
     }
 
@@ -635,7 +640,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     		{
     			// Tratamento de Recepção
     			// se está no estado de RECEIVING
-    			if(this.estadoMETX.equals(TCPIF.RECEIVING))
+    			/*if(this.estadoMERX.equals(TCPIF.RECEIVING))
     			{
     				PacoteTCP pacote = new PacoteTCP();
     				pacote.setControle(TCPIF.S_ACK);
@@ -654,7 +659,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     				}
     			}
     			// se está no bloqueado está bloqueado
-    			else if(this.estadoMETX.equals(TCPIF.RX_BLOCKED))
+    			else if(this.estadoMERX.equals(TCPIF.RX_BLOCKED))
     			{
     				//continua bloqueado e manda um ACK com a janela atual
     				
@@ -662,16 +667,22 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     				pacote.setControle(TCPIF.S_ACK);
     				pacote.setJanela(this.tamJanelaRemota);
     				this.enviaSegmentoTCP(pacote);
-    			}
+    			}*/
     			this.trataRX();
     			
     			// Tratamento de transmissão
     			if(this.estadoMETX.equals(TCPIF.TRASMITTING))
     			{
     				if(this.pacoteRecebido.getJanela() == 0)
+    				{
     					this.estadoMETX = TCPIF.TX_BLOCKED;
+    					meFrame.setEstadoTX(TCPIF.TX_BLOCKED);
+    				}
     				if(this.pacoteRecebido.getJanela() > 0)
+    				{
     					this.estadoMETX = TCPIF.TRASMITTING;
+						meFrame.setEstadoTX(TCPIF.TX_BLOCKED);
+					}
     			}
     			if(this.estadoMETX.equals(TCPIF.WAITING_ACK))
     			{	
@@ -680,27 +691,45 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     					//TODO checar se isso estÃ¡ certo
 	    				// quer dizer que ele nao tem mais dados para transmitir
 	    				if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
+	    				{
 	    					this.estadoMETX = TCPIF.IDLE;
+	    					meFrame.setEstadoTX(TCPIF.IDLE);
+	    				}
 	    				// faltam dados a serem transmitidos
 	    				else
+	    				{
 	    					this.estadoMETX = TCPIF.TX_BLOCKED;
+	    					meFrame.setEstadoTX(TCPIF.TX_BLOCKED);
+	    				}
     				}
     				if(this.pacoteRecebido.getJanela() > 0)
     				{
     					// se nÃ£o faltam dados a serem transmitidos
     					if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
+    					{
 	    					this.estadoMETX = TCPIF.IDLE;
+	    					meFrame.setEstadoTX(TCPIF.IDLE);
+    					}
     					// faltam dados a serem transmitidos
     					else
+    					{
     						this.estadoMETX = TCPIF.TRASMITTING;
+	    					meFrame.setEstadoTX(TCPIF.TRASMITTING);
+	    				}
     				}
     			}
     			if(this.estadoMETX.equals(TCPIF.TX_BLOCKED))
     			{
     				if(this.pacoteRecebido.getJanela() == 0)
+    				{
     					this.estadoMETX = TCPIF.TX_BLOCKED;
+    					meFrame.setEstadoTX(TCPIF.TX_BLOCKED);
+    				}
     				else
+    				{
     					this.estadoMETX = TCPIF.TRASMITTING;
+						meFrame.setEstadoTX(TCPIF.TRASMITTING);
+					}
     			}	
     			
     			this.trataTX();
@@ -1309,6 +1338,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 		// se todos os dados jÃ¡ foram transmitidos
 		if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
 			this.estadoMETX = TCPIF.WAITING_ACK;
+			meFrame.setEstadoTX(TCPIF.WAITING_ACK);
 		}
 	}
 	
@@ -1318,48 +1348,59 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 	 * @throws Exception
 	 */
 	private void trataRX() throws Exception{
-		
+			
 		if(this.estadoMERX.equals(TCPIF.RECEIVING))
 		{
 			// inicializa algumas variaveis necessarias para controlar a recepcao de dados
 			int tamanhoDados = this.pacoteRecebido.getDados().getBytes().length;
 			byte[] mensagemBytes = this.pacoteRecebido.getDados().getBytes();
 
-//			 copia segmento recebido para o buffer de recepção
-//			 esse +1 na condição do while é porque o atributo ultimoByteRecebido começa com -1
-//			 while(this.ultimoByteRecebido + 1 < tamanhoDados)
-			for(int i = 0; i < tamanhoDados; i++)
+			// copia segmento recebido para o buffer de recepção
+			for(int i=0; i<tamanhoDados; i++)
 			{
-				this.ultimoByteRecebido++;
-				this.bufferRX[this.ultimoByteRecebido] = mensagemBytes[i];
+				this.bufferRX[this.fimBufferRX] = mensagemBytes[i];
+				this.fimBufferRX++;
+				this.numBytesBufferrizados++;
 			}
 
+			// vê se o buffer está cheio, se sim, bloqueia e recepção e manda um ack com janela = 0
+			if(this.numBytesBufferrizados == this.bufferRX.length)
+			{
+				PacoteTCP pacote = new PacoteTCP();
+				pacote.setControle(TCPIF.S_ACK);
+				pacote.setJanela(0);
+				String textoSegmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
+				this.meFrame.atualizaDadosEstado(estadoMERX, "." , "<-", textoSegmento);
+				this.enviaSegmentoTCP(pacote);
+				this.estadoMERX = TCPIF.RX_BLOCKED;
+				meFrame.setEstadoRX(TCPIF.RX_BLOCKED);
+			}
+			
+			
 //			 copia dados do segmento recebido para a camada de aplicação
 //			 TODO essa passagem de dados para camada de aplicacao vai mudar depois, quando implementarmos o
 //			 timeout de entrega para aplicacao (fase 5)
 			String mensagem = new String(this.bufferRX);
-			mensagem = mensagem.substring(this.numSeqRXAuxiliar, this.ultimoByteRecebido + 1);
-			this.numSeqRXAuxiliar = this.ultimoByteRecebido + 1;
+			mensagem = mensagem.substring(0, this.fimBufferRX);
 			String textoSegmento = this.atualizaSegmentoRecepcao(TCPIF.S_RX, this.pacoteRecebido);
-			this.meFrame.atualizaDadosEstado(estadoMEConAtual, "." , "<-", textoSegmento);
+			this.meFrame.atualizaDadosEstado(estadoMERX, "." , "<-", textoSegmento);
 
 			// se estoura a janela de recepção, envia um ACK
-			if(this.ultimoByteRecebido + 1 - this.numSeqRXAuxiliarAck >= this.tamJanelaRemota )
+			if(this.fimBufferRX >= this.tamJanelaRemota )
 			{
-				System.out.println("Envia Akc");
-				//aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
 				PacoteTCP pacote = new PacoteTCP();
 				pacote.setControle(TCPIF.S_ACK);
     			String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
     			
-    			meFrame.atualizaDadosEstado(estadoMEConAtual, "." , "->", segmento);
+    			meFrame.atualizaDadosEstado(estadoMERX, "." , "->", segmento);
 				this.enviaSegmentoTCP(pacote);
 			}
 			
-			
+			// esvazia o buffer
 			String dados = this.meFrame.getDadosRecebidos();
 			dados = dados.concat(mensagem);
 			this.numBytesBufferrizados = 0;
+			this.fimBufferRX = 0;
 			this.meFrame.setDadosRecebidos(dados);
 			
 			// se está bloqueado e o buffer vazio, envia um ack e muda o estado para RECEIVING
@@ -1367,9 +1408,10 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			{
 				PacoteTCP pacote = new PacoteTCP();
 				String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
-				meFrame.atualizaDadosEstado(estadoMEConAtual, "." , "->", segmento);
+				meFrame.atualizaDadosEstado(estadoMERX, "." , "->", segmento);
 				this.enviaSegmentoTCP(pacote);
 				this.estadoMERX = TCPIF.RECEIVING;
+				meFrame.setEstadoRX(TCPIF.RECEIVING);
 			}
 			
 			
