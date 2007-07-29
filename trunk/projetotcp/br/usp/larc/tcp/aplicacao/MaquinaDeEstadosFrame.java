@@ -27,6 +27,9 @@ import javax.swing.*;
  */
 public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
     
+	public String estTX = "Idle";
+	public String estRX = "Recv";
+	
     /** Creates new form MaquinaDeEstadosFrame */
     public MaquinaDeEstadosFrame() {
         initComponents();
@@ -453,6 +456,40 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
     	jTextFieldNumACK.setText(String.valueOf(numACK));
     }
     
+    
+    public void setEstadoRX(String estado)
+    {
+    	if(estado.equals(TCPIF.RECEIVING))
+    	{
+    		estRX = "Recv";
+    	}
+    	else if(estado.equals(TCPIF.RX_BLOCKED))
+    	{
+    		estRX = "Bloq";
+    	}
+    	jTextFieldEstAtual.setText(estTX + "/" + estRX);
+    }
+    
+    public void setEstadoTX(String estado)
+    {
+    	if(estado.equals(TCPIF.WAITING_ACK))
+    	{
+    		estTX = "WAck";
+    	}
+    	else if(estado.equals(TCPIF.TX_BLOCKED))
+    	{
+    		estTX = "Bloq";
+    	}
+    	else if(estado.equals(TCPIF.IDLE))
+    	{
+    		estTX = "Idle";
+    	}
+    	else if(estado.equals(TCPIF.TRASMITTING))
+    	{
+    		estTX = "Trans";
+    	}
+    	jTextFieldEstAtual.setText(estTX + "/" + estRX);
+    }
     
     /*
      * Atualiza os dados da area de texto da tabela do diagrama de tempo
