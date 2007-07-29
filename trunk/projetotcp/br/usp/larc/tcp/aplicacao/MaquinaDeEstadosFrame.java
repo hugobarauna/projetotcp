@@ -29,6 +29,8 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
     
 	public String estTX = "Idle";
 	public String estRX = "Recv";
+	public String numSeq = "0";
+	public String numSeqNConf = "0";
 	
     /** Creates new form MaquinaDeEstadosFrame */
     public MaquinaDeEstadosFrame() {
@@ -489,6 +491,40 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
     		estTX = "Trans";
     	}
     	jTextFieldEstAtual.setText(estTX + "/" + estRX);
+    }
+    
+    public int getJanela()
+    {
+    	return Integer.parseInt(jTextFieldTamJan.getText());
+    }
+    
+    public int getSegmento()
+    {
+    	return Integer.parseInt(jTextFieldTamSeg.getText());
+    }
+    
+    public void setJanela(int janela)
+    {
+    	jTextFieldTamJan.setText(String.valueOf(janela));
+    }
+    
+    public void setSegmento(int segmento)
+    {
+    	jTextFieldTamSeg.setText(String.valueOf(segmento));
+    }
+    
+    public void setNumSeq(long numSeq)
+    {
+    	this.numSeq = String.valueOf(numSeq);
+    	
+    	jTextFieldNumSeq.setText(this.numSeq + "/"+ this.numSeqNConf);
+    }
+    
+    public void setNumSeqNConf(long numSeqNConf)
+    {
+    	this.numSeqNConf = String.valueOf(numSeqNConf);
+    	
+    	jTextFieldNumSeq.setText(this.numSeq + "/"+ this.numSeqNConf);
     }
     
     /*

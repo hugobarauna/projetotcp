@@ -170,6 +170,7 @@ public class MaquinaDeEstados {
      * Buffer de recepÃ§Ã£o de dados
      */
     private byte[] bufferRX = new byte[2 * this.tamJanelaRecepcao];
+    //private byte[] bufferRX = new byte[3];
     
     /**
      * Ponteiro para o ultimo byte do buffer de transmissao que foi enviado
@@ -248,7 +249,9 @@ public class MaquinaDeEstados {
             this.getIpSimuladoLocalBytePonto(),
             Integer.toString(this.portaLocal),  "null",  "null");
         meFrame.setEstadoTX(TCPIF.IDLE);
-        
+        this.janelaDeRecepcao = 100;
+        meFrame.setJanela(this.janelaDeRecepcao);
+        meFrame.setSegmento(this.MSS);
     }
 
     /** 
@@ -590,6 +593,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     		// Atualiza o frame
     		String segmentoRecebido = this.atualizaSegmentoRecepcao(TCPIF.S_ACK, _pacoteTCP);
     		mef.atualizaDadosEstado(estadoMEConAtual, "." , "<-", segmentoRecebido);
+    		
     		if(estadoMEConAtual.equals(TCPIF.SYNRCVD))
     		{
     			// muda para o estado ESTABLISHED
@@ -639,35 +643,6 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     		else if(estadoMEConAtual.equals(TCPIF.ESTABLISHED))
     		{
     			// Tratamento de Recepção
-    			// se está no estado de RECEIVING
-    			/*if(this.estadoMERX.equals(TCPIF.RECEIVING))
-    			{
-    				PacoteTCP pacote = new PacoteTCP();
-    				pacote.setControle(TCPIF.S_ACK);
-    				
-    				// se buffer está cheio, manda um ACK com janela 0 e muda para o estado RX_BLOCKED
-    				if(this.numBytesBufferrizados == this.bufferRX.length)
-    				{
-    					pacote.setJanela(0);
-    					this.enviaSegmentoTCP(pacote);
-    				}
-    				// se o buffer não está cheio, manda um ACK com a janela atual
-    				else
-    				{
-    					pacote.setJanela(this.tamJanelaRemota);
-    					this.enviaSegmentoTCP(pacote);
-    				}
-    			}
-    			// se está no bloqueado está bloqueado
-    			else if(this.estadoMERX.equals(TCPIF.RX_BLOCKED))
-    			{
-    				//continua bloqueado e manda um ACK com a janela atual
-    				
-    				PacoteTCP pacote = new PacoteTCP();
-    				pacote.setControle(TCPIF.S_ACK);
-    				pacote.setJanela(this.tamJanelaRemota);
-    				this.enviaSegmentoTCP(pacote);
-    			}*/
     			this.trataRX();
     			
     			// Tratamento de transmissão
@@ -681,7 +656,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     				if(this.pacoteRecebido.getJanela() > 0)
     				{
     					this.estadoMETX = TCPIF.TRASMITTING;
-						meFrame.setEstadoTX(TCPIF.TX_BLOCKED);
+						meFrame.setEstadoTX(TCPIF.TRASMITTING);
 					}
     			}
     			if(this.estadoMETX.equals(TCPIF.WAITING_ACK))
@@ -716,6 +691,9 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     						this.estadoMETX = TCPIF.TRASMITTING;
 	    					meFrame.setEstadoTX(TCPIF.TRASMITTING);
 	    				}
+    					
+    					// seta o Último Numero de Sequencia não Confirmado
+    					meFrame.setNumSeqNConf(this.numSeqTX);
     				}
     			}
     			if(this.estadoMETX.equals(TCPIF.TX_BLOCKED))
@@ -940,6 +918,8 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     		this.proxNumSeq++;
     	else
     		this.proxNumSeq += _pacoteTCP.getDados().getBytes().length;
+    	
+    	meFrame.setNumSeq(this.proxNumSeq);
     	
     	// poe o numero de ack. Caso nÃ£o esteja mandando um segmento do tipo ACK, devemos renderizar na tela 
     	// ACK igual a 0, naquela diagrama de tempos da maquina de estado frame
@@ -1368,7 +1348,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			{
 				PacoteTCP pacote = new PacoteTCP();
 				pacote.setControle(TCPIF.S_ACK);
-				pacote.setJanela(0);
+				this.tamJanelaRecepcao = 0;
 				String textoSegmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
 				this.meFrame.atualizaDadosEstado(estadoMERX, "." , "<-", textoSegmento);
 				this.enviaSegmentoTCP(pacote);
@@ -1386,12 +1366,12 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			this.meFrame.atualizaDadosEstado(estadoMERX, "." , "<-", textoSegmento);
 
 			// se estoura a janela de recepção, envia um ACK
-			if(this.fimBufferRX >= this.tamJanelaRemota )
+			if(this.fimBufferRX >= this.tamJanelaRecepcao )
 			{
 				PacoteTCP pacote = new PacoteTCP();
 				pacote.setControle(TCPIF.S_ACK);
     			String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
-    			
+
     			meFrame.atualizaDadosEstado(estadoMERX, "." , "->", segmento);
 				this.enviaSegmentoTCP(pacote);
 			}
@@ -1409,6 +1389,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 				PacoteTCP pacote = new PacoteTCP();
 				String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
 				meFrame.atualizaDadosEstado(estadoMERX, "." , "->", segmento);
+				this.tamJanelaRecepcao = meFrame.getJanela();
 				this.enviaSegmentoTCP(pacote);
 				this.estadoMERX = TCPIF.RECEIVING;
 				meFrame.setEstadoRX(TCPIF.RECEIVING);
