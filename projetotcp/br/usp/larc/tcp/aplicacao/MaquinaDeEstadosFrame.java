@@ -448,6 +448,12 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
         this.maquinaDeEstados.getMonitor().fechaMaquinaDeEstados(this.idConexao);
     }//GEN-LAST:event_exitForm
     
+    public void setNumACK(int numACK)
+    {
+    	jTextFieldNumACK.setText(String.valueOf(numACK));
+    }
+    
+    
     /*
      * Atualiza os dados da area de texto da tabela do diagrama de tempo
      *

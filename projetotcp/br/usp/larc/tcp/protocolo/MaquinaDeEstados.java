@@ -188,6 +188,8 @@ public class MaquinaDeEstados {
      */
     private int numSeqTXAuxiliar = 0;
     
+    private int numSeqRXAuxiliarAck = 0;
+    
     /**
      * NÃºmero de bytes que foram transmitidos do buffer de transmissao
      */
@@ -1240,14 +1242,13 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			break;
 		}
 		
-		return segmento;
-	}
-		/*
 		if(pacoteRecebido.getDados().getBytes().length == 0) // recebeu um segmento de controle, sem nada no campo dados
 			this.numAck++;
 		else
 			this.numAck += pacoteRecebido.getDados().getBytes().length;
-		/*
+		
+		meFrame.setNumACK(this.numAck);
+		
 		return segmento;
 	}
 	
@@ -1318,7 +1319,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 		
 		if(this.estadoMERX.equals(TCPIF.RECEIVING))
 		{
-		//			 inicializa algumas variaveis necessarias para controlar a recepcao de dados
+			// inicializa algumas variaveis necessarias para controlar a recepcao de dados
 			int tamanhoDados = this.pacoteRecebido.getDados().getBytes().length;
 			byte[] mensagemBytes = this.pacoteRecebido.getDados().getBytes();
 
@@ -1335,12 +1336,25 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 //			 TODO essa passagem de dados para camada de aplicacao vai mudar depois, quando implementarmos o
 //			 timeout de entrega para aplicacao (fase 5)
 			String mensagem = new String(this.bufferRX);
-//			 mensagem = mensagem.substring(this.ultimoByteLido + 1, this.ultimoByteRecebido + 1);
 			mensagem = mensagem.substring(this.numSeqRXAuxiliar, this.ultimoByteRecebido + 1);
 			this.numSeqRXAuxiliar = this.ultimoByteRecebido + 1;
 			String textoSegmento = this.atualizaSegmentoRecepcao(TCPIF.S_RX, this.pacoteRecebido);
 			this.meFrame.atualizaDadosEstado(estadoMEConAtual, "." , "<-", textoSegmento);
 
+			// se estoura a janela de recepção, envia um ACK
+			if(this.ultimoByteRecebido + 1 - this.numSeqRXAuxiliarAck >= this.tamJanelaRemota )
+			{
+				System.out.println("Envia Akc");
+				//aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa
+				PacoteTCP pacote = new PacoteTCP();
+				pacote.setControle(TCPIF.S_ACK);
+    			String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
+    			
+    			meFrame.atualizaDadosEstado(estadoMEConAtual, "." , "->", segmento);
+				this.enviaSegmentoTCP(pacote);
+			}
+			
+			
 			String dados = this.meFrame.getDadosRecebidos();
 			dados = dados.concat(mensagem);
 			this.meFrame.setDadosRecebidos(dados);
