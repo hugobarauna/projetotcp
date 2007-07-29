@@ -1302,6 +1302,8 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 				String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_TX, pacote);
     			this.meFrame.atualizaDadosEstado(estadoMETX, "." , "->", segmento);
 				this.enviaSegmentoTCP(pacote);
+			
+				
 			}
 		
 		// se todos os dados jÃ¡ foram transmitidos
@@ -1357,7 +1359,23 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			
 			String dados = this.meFrame.getDadosRecebidos();
 			dados = dados.concat(mensagem);
+			this.numBytesBufferrizados = 0;
 			this.meFrame.setDadosRecebidos(dados);
+			
+			// se está bloqueado e o buffer vazio, envia um ack e muda o estado para RECEIVING
+			if(this.numBytesBufferrizados == 0 && this.estadoMERX.equals(TCPIF.RX_BLOCKED))
+			{
+				PacoteTCP pacote = new PacoteTCP();
+				String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
+				meFrame.atualizaDadosEstado(estadoMEConAtual, "." , "->", segmento);
+				this.enviaSegmentoTCP(pacote);
+				this.estadoMERX = TCPIF.RECEIVING;
+			}
+			
+			
+			//this.numBytesBufferrizados = 0;
+			//this.numSeqTXAuxiliar = 0;
+			//this.ultimoByteRecebido = -1;
 		}
 	}
 }//fim da classe MaquinaDeEstados 2006
