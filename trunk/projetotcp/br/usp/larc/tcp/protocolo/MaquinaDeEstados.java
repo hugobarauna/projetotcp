@@ -75,16 +75,15 @@ public class MaquinaDeEstados {
     private String estadoMEConAtual;
     
     /**
-     * Estado atual da m√°quina de transmissao
+     * Estado atual da maquina de transmissao
      */
     private String estadoMETX = TCPIF.IDLE;
     
     /**
-     * Estado atual da m√°quina de recepcao
+     * Estado atual da maquina de recepcao
      */
     private String estadoMERX = TCPIF.RECEIVING;
-    
-    private int janelaDeRecepcao = 0;
+     
     /** 
      * Constante que guarda o nmero de retransmisses de um segmeto TCP com
      * timestamp expirado.
@@ -203,7 +202,10 @@ public class MaquinaDeEstados {
      * Numero de bytes da mensagem de transmissao que ja foram transmitidos para o buffer.
      * Serve como ponteiro para a cadeia de bytes da mensagem
      */
-    private int numBytesBufferrizados = 0;    
+    private int numBytesBufferrizadosTX = 0;    
+    
+    
+    private int numBytesBufferrizadosRX = 0;
     
 //    /**
 //     * Dados a serem transmitidos em um segmento
@@ -249,8 +251,7 @@ public class MaquinaDeEstados {
             this.getIpSimuladoLocalBytePonto(),
             Integer.toString(this.portaLocal),  "null",  "null");
         meFrame.setEstadoTX(TCPIF.IDLE);
-        this.janelaDeRecepcao = 100;
-        meFrame.setJanela(this.janelaDeRecepcao);
+        meFrame.setJanela(this.tamJanelaRecepcao);
         meFrame.setSegmento(this.MSS);
     }
 
@@ -395,6 +396,7 @@ public class MaquinaDeEstados {
     		}
     		else if(estadoMEConAtual.equals(TCPIF.ESTABLISHED))
     		{
+    			// seta aqui o tamanho da mensagem que esta sendo enviada
     			if(this.estadoMETX.equals(TCPIF.IDLE))
     			{
     				this.estadoMETX = TCPIF.TRASMITTING;
@@ -578,7 +580,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     		{
     			// muda para o estado SYNRCVD
     			estadoMEConAtual = TCPIF.SYNRCVD;
-    			// pe ACK
+    			// poe ACK
     			pacoteTCP.setControle(TCPIF.S_ACK);
     			// atualiza frame
     			String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacoteTCP);
@@ -663,27 +665,40 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     			{	
     				if(this.pacoteRecebido.getJanela() == 0)
     				{
-    					//TODO checar se isso est√° certo
+    					//TODO checar se isso esta certo
 	    				// quer dizer que ele nao tem mais dados para transmitir
-	    				if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
+    					// zera o numero de sequencia auxiliar e zera o buufer de transmissao
+	    				// modificado celso if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
+    					if((this.numSeqTXAuxiliar) == this.tamanhoTotalMensagem)
 	    				{
 	    					this.estadoMETX = TCPIF.IDLE;
 	    					meFrame.setEstadoTX(TCPIF.IDLE);
+	    					// celso
+	    					this.numSeqTXAuxiliar = 0;
+	    					this.numBytesBufferrizadosTX = 0;
+	    					
+	       					// seta o ⁄ltimo Numero de Sequencia n„o Confirmado
+	    					meFrame.setNumSeqNConf(this.numSeqTX);
 	    				}
 	    				// faltam dados a serem transmitidos
 	    				else
 	    				{
+	    					System.out.println("numSeqAux" + this.numSeqTXAuxiliar + " msg" + this.tamanhoTotalMensagem);
 	    					this.estadoMETX = TCPIF.TX_BLOCKED;
 	    					meFrame.setEstadoTX(TCPIF.TX_BLOCKED);
 	    				}
     				}
     				if(this.pacoteRecebido.getJanela() > 0)
     				{
-    					// se n√£o faltam dados a serem transmitidos
-    					if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
+    					// se nao faltam dados a serem transmitidos
+	    				// modificado celso if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
+    					if((this.numSeqTXAuxiliar + 1) == this.tamanhoTotalMensagem)
     					{
 	    					this.estadoMETX = TCPIF.IDLE;
 	    					meFrame.setEstadoTX(TCPIF.IDLE);
+	    					// celso
+	    					this.numSeqTXAuxiliar = 0;
+	    					this.numBytesBufferrizadosTX = 0;	    					
     					}
     					// faltam dados a serem transmitidos
     					else
@@ -1275,22 +1290,22 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			// estou considerando aqui que o cabe√ßalho TCP sempre ter√° 24 bytes, baseado no contrutor da 
 			// classe PacoteTCP
 			// esta variavel guarda o numero maximo de bytes que o semento TCP pode carregar como dados 
-			int espacoDados = this.MSS - 24;
+			int tamDados = this.MSS - 24;
 			
 			
 			// copia a mensagem inteira para o buffer, acreditando que a mensagem ira caber inteiramente no buffer
-			while(this.numBytesBufferrizados < tamanhoMensagem)
+			while(this.numBytesBufferrizadosTX < tamanhoMensagem)
 			{
-				this.bufferTX[this.numBytesBufferrizados] = mensagemBytes[this.numBytesBufferrizados];
-				this.numBytesBufferrizados++;
+				this.bufferTX[this.numBytesBufferrizadosTX] = mensagemBytes[this.numBytesBufferrizadosTX];
+				this.numBytesBufferrizadosTX++;
 			}
 			
-			byte[] dadosSegmentoTX = new byte[espacoDados];
+			byte[] dadosSegmentoTX = new byte[tamDados];
 			// transmite segmentos enquanto o numero de bytes transmitidos for menor que numero de bytes 
 			// da mensagem total e enquanto o numero de bytes transmitidos for menor que a janela de recepcao do
 			// receptor remoto
-			// TODO implementar depois suporte a transmissao de mensagems maiores que a janela de recepcao (FASE 5)
-			while((this.numSeqTX + 1) < this.tamJanelaRemota && (this.numSeqTX + 1)< tamanhoMensagem)
+			// TODO implementar depois suporte a transmissao de mensagems maiores que a janela de recepcao (FASE 5)	
+			/*while((this.numSeqTX + 1) < this.tamJanelaRemota && (this.numSeqTX + 1)< tamanhoMensagem)
 			{	
 				// monta os dados para serem enviado por um segmento
 				// continua montando at√© o espa√ßo para dados do segmento encher
@@ -1313,12 +1328,38 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 				this.enviaSegmentoTCP(pacote);
 			
 				
+			}*/
+			while(this.numSeqTXAuxiliar< this.tamJanelaRemota && this.numSeqTXAuxiliar< tamanhoMensagem)
+			{
+				// monta os dados para serem enviado por um segmento
+				// continua montando ate o espaco para dados do segmento encher
+				// ou ate o numero de bytes da mensagem inteira se esgotar
+				int i;
+				for(i = 0; i < tamDados && this.numSeqTXAuxiliar < tamanhoMensagem ; i++)
+				{	
+					dadosSegmentoTX[i] = this.bufferTX[this.numSeqTXAuxiliar];
+					this.numSeqTXAuxiliar++;
+				}
+				PacoteTCP pacote = new PacoteTCP();
+				String dados = new String(dadosSegmentoTX);
+				dados = dados.substring(0, i);
+				pacote.setDados(dados);
+				String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_TX, pacote);
+				this.meFrame.atualizaDadosEstado(estadoMETX, "." , "->", segmento);
+				this.enviaSegmentoTCP(pacote);
+				this.numSeqTX += this.numSeqTXAuxiliar + 1;
 			}
+			
 		
-		// se todos os dados j√° foram transmitidos
-		if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
+		// se todos os dados ja foram transmitidos
+		/*if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
 			this.estadoMETX = TCPIF.WAITING_ACK;
 			meFrame.setEstadoTX(TCPIF.WAITING_ACK);
+		}*/
+		if(this.numSeqTXAuxiliar == this.tamanhoTotalMensagem)
+			this.estadoMETX = TCPIF.WAITING_ACK;
+			meFrame.setEstadoTX(TCPIF.WAITING_ACK);
+			//this.numSeqTXAuxiliar = 0;
 		}
 	}
 	
@@ -1340,22 +1381,9 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			{
 				this.bufferRX[this.fimBufferRX] = mensagemBytes[i];
 				this.fimBufferRX++;
-				this.numBytesBufferrizados++;
+				this.numBytesBufferrizadosRX++;
 			}
 
-			// vÍ se o buffer est· cheio, se sim, bloqueia e recepÁ„o e manda um ack com janela = 0
-			if(this.numBytesBufferrizados == this.bufferRX.length)
-			{
-				PacoteTCP pacote = new PacoteTCP();
-				pacote.setControle(TCPIF.S_ACK);
-				this.tamJanelaRecepcao = 0;
-				String textoSegmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
-				this.meFrame.atualizaDadosEstado(estadoMERX, "." , "<-", textoSegmento);
-				this.enviaSegmentoTCP(pacote);
-				this.estadoMERX = TCPIF.RX_BLOCKED;
-				meFrame.setEstadoRX(TCPIF.RX_BLOCKED);
-			}
-			
 			
 //			 copia dados do segmento recebido para a camada de aplicaÁ„o
 //			 TODO essa passagem de dados para camada de aplicacao vai mudar depois, quando implementarmos o
@@ -1364,9 +1392,25 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			mensagem = mensagem.substring(0, this.fimBufferRX);
 			String textoSegmento = this.atualizaSegmentoRecepcao(TCPIF.S_RX, this.pacoteRecebido);
 			this.meFrame.atualizaDadosEstado(estadoMERX, "." , "<-", textoSegmento);
+			
+			
+			// vÍ se o buffer est· cheio, se sim, bloqueia e recepÁ„o e manda um ack com janela = 0
+			if(this.numBytesBufferrizadosRX == this.bufferRX.length)
+			{
+				PacoteTCP pacote = new PacoteTCP();
+				pacote.setControle(TCPIF.S_ACK);
+				this.tamJanelaRecepcao = 0;
+				textoSegmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
+				this.meFrame.atualizaDadosEstado(estadoMERX, "." , "->", textoSegmento);
+				this.enviaSegmentoTCP(pacote);
+				this.estadoMERX = TCPIF.RX_BLOCKED;
+				meFrame.setEstadoRX(TCPIF.RX_BLOCKED);
+			}
+			
+		
 
 			// se estoura a janela de recepÁ„o, envia um ACK
-			if(this.fimBufferRX >= this.tamJanelaRecepcao )
+			if(this.fimBufferRX >= this.tamJanelaRecepcao && this.numBytesBufferrizadosRX != this.bufferRX.length )
 			{
 				PacoteTCP pacote = new PacoteTCP();
 				pacote.setControle(TCPIF.S_ACK);
@@ -1379,18 +1423,20 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			// esvazia o buffer
 			String dados = this.meFrame.getDadosRecebidos();
 			dados = dados.concat(mensagem);
-			this.numBytesBufferrizados = 0;
+			this.numBytesBufferrizadosRX = 0;
 			this.fimBufferRX = 0;
 			this.meFrame.setDadosRecebidos(dados);
 			
 			// se est· bloqueado e o buffer vazio, envia um ack e muda o estado para RECEIVING
-			if(this.numBytesBufferrizados == 0 && this.estadoMERX.equals(TCPIF.RX_BLOCKED))
+			if(this.numBytesBufferrizadosRX == 0 && this.estadoMERX.equals(TCPIF.RX_BLOCKED))
 			{
 				PacoteTCP pacote = new PacoteTCP();
+				//this.tamJanelaRecepcao = meFrame.getJanela();
+				this.tamJanelaRecepcao = meFrame.getJanela();
+				System.out.println("entrou em limpa");
+				this.enviaSegmentoTCP(pacote);
 				String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
 				meFrame.atualizaDadosEstado(estadoMERX, "." , "->", segmento);
-				this.tamJanelaRecepcao = meFrame.getJanela();
-				this.enviaSegmentoTCP(pacote);
 				this.estadoMERX = TCPIF.RECEIVING;
 				meFrame.setEstadoRX(TCPIF.RECEIVING);
 			}
