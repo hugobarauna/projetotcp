@@ -594,7 +594,12 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     	{
     		// Atualiza o frame
     		String segmentoRecebido = this.atualizaSegmentoRecepcao(TCPIF.S_ACK, _pacoteTCP);
-    		mef.atualizaDadosEstado(estadoMEConAtual, "." , "<-", segmentoRecebido);
+    		// se ele estiver ainda no modo de transmitir dados, imprimir o estado da maquina TX e não
+    		// o estado da maquina de conexao desconexao
+    		if(this.estadoMETX != TCPIF.IDLE)
+    			mef.atualizaDadosEstado(this.estadoMETX, "." , "<-", segmentoRecebido);
+    		else
+    			mef.atualizaDadosEstado(estadoMEConAtual, "." , "<-", segmentoRecebido);
     		
     		if(estadoMEConAtual.equals(TCPIF.SYNRCVD))
     		{
