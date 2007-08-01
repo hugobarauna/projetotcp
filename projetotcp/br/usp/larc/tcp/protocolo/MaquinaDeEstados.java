@@ -654,7 +654,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     			// TODO depois consertar isso aqui para um caso mais geral que pode ser necessrio para a 
     			// fase 5
     			// Esse idle abaixo quer dizer que a maquina esta recebendo, e nao transmitindo
-    			if(this.estadoMETX.equals(TCPIF.IDLE))
+    			if(this.numSeqTX == -1)
     				this.trataRX();
     			
     			// Tratamento de transmisso
