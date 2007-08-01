@@ -686,7 +686,9 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 	    					// celso
 	    					this.numSeqTXAuxiliar = 0;
 	    					this.numBytesBufferrizadosTX = 0;
-	    					
+	    					// renderiza na tela
+	    					this.meFrame.atualizaDadosEstado(estadoMETX, "." , ".", ".");
+	    					this.meFrame.atualizaDadosEstado(estadoMEConAtual, "." , ".", ".");
 	       					// seta o ltimo Numero de Sequencia no Confirmado
 	    					meFrame.setNumSeqNConf(this.numSeqTX);
 	    				}
@@ -1441,20 +1443,24 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			}
 			// tratamento do evento buffer vazio
 		    // se estado igual a bloqueado e o buffer esta vazio, envia um ack e muda o estado para RECEIVING
-			else if(this.numBytesBufferrizadosRX == 0 && this.estadoMERX.equals(TCPIF.RX_BLOCKED))
+			if(this.numBytesBufferrizadosRX == 0 && this.estadoMERX.equals(TCPIF.RX_BLOCKED))
 			{
+				// monta segmento ACK com janela maio que zero
 				PacoteTCP pacote = new PacoteTCP();
 				//this.tamJanelaRecepcao = meFrame.getJanela();
 				this.tamJanelaRecepcao = meFrame.getJanela();
+				pacote.setControle(TCPIF.S_ACK);
 				System.out.println("entrou em limpa");
-				this.enviaSegmentoTCP(pacote);
 				
 				// atualiza estado e renderiza na tela
 				this.estadoMERX = TCPIF.RECEIVING;
 				meFrame.setEstadoRX(TCPIF.RECEIVING);
 				String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
 				meFrame.atualizaDadosEstado(estadoMERX, "." , "->", segmento);
+				
+				this.enviaSegmentoTCP(pacote);
 			}
+			
 
 //			// se estoura a janela de recepo, envia um ACK
 //			if(this.fimBufferRX >= this.tamJanelaRecepcao && this.numBytesBufferrizadosRX != this.bufferRX.length )
