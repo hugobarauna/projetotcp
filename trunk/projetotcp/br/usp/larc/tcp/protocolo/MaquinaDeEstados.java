@@ -597,6 +597,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     	// se recebeu um ACK
     	else if(pacoteRecebido.getControle() == Short.parseShort(Decoder.byteToString(TCPIF.S_ACK)))
     	{
+   		
     		// Atualiza o frame
     		String segmentoRecebido = this.atualizaSegmentoRecepcao(TCPIF.S_ACK, _pacoteTCP);
     		// se ele estiver ainda no modo de transmitir dados, imprimir o estado da maquina TX e não
@@ -654,6 +655,8 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     		}
     		else if(estadoMEConAtual.equals(TCPIF.ESTABLISHED))
     		{
+    			// cancela timeout de retransmissao
+    			//this.cancelaTimeOut();
     			
     			// Tratamento de Recepcao
     			// TODO depois consertar isso aqui para um caso mais geral que pode ser necessrio para a 
@@ -671,7 +674,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     					meFrame.setEstadoTX(TCPIF.TX_BLOCKED);
     					
     					// ativa timeout de Keep Alive
-    					this.ativaTimeOut(true);
+    					this.ativaTimeOut(true,0);
 
     				}
     				if(this.pacoteRecebido.getJanela() > 0)
@@ -682,6 +685,9 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     			}
     			if(this.estadoMETX.equals(TCPIF.WAITING_ACK))
     			{	
+
+    				this.cancelaTimeOut();
+    				
     				if(this.pacoteRecebido.getJanela() == 0)
     				{
     					//TODO checar se isso esta certo
@@ -708,7 +714,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 	    					this.estadoMETX = TCPIF.TX_BLOCKED;
 	    					meFrame.setEstadoTX(TCPIF.TX_BLOCKED);
 	    					// timeout de KeepAlive
-	    					this.ativaTimeOut(true);
+	    					this.ativaTimeOut(true,0);
 	    				}
     				}
     				if(this.pacoteRecebido.getJanela() > 0)
@@ -977,7 +983,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     		|| this.estadoMEConAtual.equals(TCPIF.FINWAIT_1) || this.estadoMEConAtual.equals(TCPIF.CLOSING)
     		|| this.estadoMEConAtual.equals(TCPIF.TIMEWAIT))
     	{
-    		this.ativaTimeOut(false);
+    		this.ativaTimeOut(false,0);
     	}
     	
     	// manda o pacote para a camada IP
@@ -989,14 +995,22 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
      * seja excedido
      *
      */
-    private void ativaTimeOut(boolean timeOutTX){
+    private void ativaTimeOut(boolean timeOutTX, int tempo){
 //    	if(this.oTimer != null)
 //    	{
 //    		this.oTimer = null;
 //    	}
     	this.oTimer = new Timer();
     	this.oTimeOutTask = new TimeOutTask(this,timeOutTX);
-    	oTimer.schedule(this.oTimeOutTask, tempoTimeout);
+    	if(tempo==0)
+    	{
+    		oTimer.schedule(this.oTimeOutTask, tempoTimeout);
+    	}
+    	else
+    	{
+    		oTimer.schedule(this.oTimeOutTask, tempo);
+    	}
+    	
     }
     
     /**
@@ -1038,13 +1052,17 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     	    			me.meFrame.atualizaDadosEstado(estadoMEConAtual, "." , "->", segmento);
     	    			
     	    			// reativa o timeout
-    	    			me.ativaTimeOut(true);
+    	    			me.ativaTimeOut(true,0);
     				}
     				// timeout de retransmissão de dados
     				else if(me.estadoMETX.equals(TCPIF.WAITING_ACK))
     				{
+    					System.out.println("timeout retransmissao");
     					me.numBytesTransmitidos -= me.meFrame.getDados().length();
     					me.numSeqTX -= me.meFrame.getDados().length();
+    					me.numBytesBufferrizadosTX -= me.meFrame.getDados().length();
+    					me.estadoMETX = TCPIF.TRASMITTING;
+    					me.trataTX();
     				}
     				// timeout de estado bloqueado
     				else if(me.estadoMERX.equals(TCPIF.RX_BLOCKED))
@@ -1058,6 +1076,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     					me.enviaSegmentoTCP(pacote);
     				}
     				// timeout de entrega de aplicação
+    				
     				else
     				{
     					PacoteTCP pacote = new PacoteTCP();
@@ -1429,6 +1448,9 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			{
 				this.estadoMETX = TCPIF.WAITING_ACK;
 				meFrame.setEstadoTX(TCPIF.WAITING_ACK);
+				
+				// ative timeout de retransmissao
+				this.ativaTimeOut(true,10000);
 			}
 			// trata evento de estouro da janela de recepcao do receptor remoto
 			else if(this.numBytesTransmitidos == this.tamJanelaRemota)
@@ -1436,6 +1458,9 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 				this.estadoMETX = TCPIF.WAITING_ACK;
 				meFrame.setEstadoTX(TCPIF.WAITING_ACK);
 				this.janelaTransmissao = 0;
+				
+				// ative timeout de retransmissao
+				this.ativaTimeOut(true,10000);
 			}
 		
 		}
@@ -1538,7 +1563,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			}
 			
 			// ativa timeout de aplicação
-			this.ativaTimeOut(true);
+			this.ativaTimeOut(true,0);
 			
 		}
 	}
