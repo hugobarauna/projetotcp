@@ -611,10 +611,14 @@ public class MaquinaDeEstadosFrame extends javax.swing.JFrame {
 //    	jTextAreaDadosRecebidos.setText(_dados);
 //    }
     
-    // TODO
     public String getDados()
     {
     	return jTextAreaDadosEnviados.getText();
+    }
+    
+    public void setDados(String dados)
+    {
+    	jTextAreaDadosEnviados.setText(dados);
     }
     
     public void setDadosRecebidos(String dadosRecebidos)
