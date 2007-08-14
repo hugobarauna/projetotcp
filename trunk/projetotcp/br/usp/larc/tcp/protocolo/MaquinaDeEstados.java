@@ -670,7 +670,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     			if(this.numSeqTX == -1)
     				this.trataRX();
     			
-    			// Tratamento de transmisso
+    			// Tratamento de transmissao
     			if(this.estadoMETX.equals(TCPIF.TRASMITTING))
     			{
     				if(this.pacoteRecebido.getJanela() == 0)
@@ -723,7 +723,8 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 	    				}
     				}
     				if(this.pacoteRecebido.getJanela() > 0)
-    				{
+    				{	
+    					this.janelaTransmissao = 0;
     					// se nao faltam dados a serem transmitidos
 	    				// modificado celso if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
     					if((this.numBytesTransmitidos) == this.tamanhoTotalMensagem)
@@ -1063,10 +1064,18 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     				else if(me.estadoMETX.equals(TCPIF.WAITING_ACK))
     				{
     					System.out.println("timeout retransmissao");
-    					me.numBytesTransmitidos -= me.meFrame.getDados().length();
-    					me.numSeqTX -= me.meFrame.getDados().length();
-    					me.numBytesBufferrizadosTX -= me.meFrame.getDados().length();
+    					int bytesTransmitidos;
+    					if( (me.numBytesTransmitidos % 12) == 0)
+    						bytesTransmitidos = 12;
+    					else
+    						bytesTransmitidos = me.numBytesTransmitidos % 12; 
+    					//me.numBytesTransmitidos -= me.meFrame.getDados().length();
+    					me.numBytesTransmitidos -= bytesTransmitidos;
+    					me.numSeqTX -= bytesTransmitidos;
+    					me.proxNumSeq -= bytesTransmitidos;
+    					me.numBytesBufferrizadosTX -= bytesTransmitidos;
     					me.estadoMETX = TCPIF.TRASMITTING;
+    					me.janelaTransmissao = 0;
     					me.trataTX();
     				}
     				// timeout de estado bloqueado
@@ -1463,7 +1472,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			{
 				this.estadoMETX = TCPIF.WAITING_ACK;
 				meFrame.setEstadoTX(TCPIF.WAITING_ACK);
-				this.janelaTransmissao = 0;
+//				this.janelaTransmissao = 0;
 				
 				// ative timeout de retransmissao
 				this.ativaTimeOut(true,10000);
@@ -1478,7 +1487,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 	 * @throws Exception
 	 */
 	private void trataRX() throws Exception{
-			
+		/*	
 		if(this.estadoMERX.equals(TCPIF.RECEIVING))
 		{
 			// inicializa algumas variaveis necessarias para controlar a recepcao de dados
@@ -1571,6 +1580,6 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			// ativa timeout de aplicação
 			this.ativaTimeOut(true,0);
 			
-		}
+		}*/
 	}
 }//fim da classe MaquinaDeEstados 2006
