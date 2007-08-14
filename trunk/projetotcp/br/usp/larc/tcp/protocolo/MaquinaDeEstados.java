@@ -238,6 +238,11 @@ public class MaquinaDeEstados {
     private int inicioBufferRX = -1;
     private int fimBufferRX = 0;
 
+    /**
+     * Indica se o timeout que ocorreu é de conexao ou de transmissao
+     * Se true, o timeout é de transmissao
+     * Se false, o timeout é de conexão
+     */
 	private boolean timeOutTX;
     
     /** Construtor da classe MaquinaDeEstados */
@@ -1030,7 +1035,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     	}
     	
     	/**
-    	 * Este  o mtodo ativado quando a task  executada, de acordo com o schedule que foi feito
+    	 * Este e o metodo ativado quando a task e executada, de acordo com o schedule que foi feito
     	 */
     	public void run(){
     		try {
@@ -1075,8 +1080,8 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     					me.meFrame.atualizaDadosEstado(estadoMERX, "." , "->", textoSegmento);
     					me.enviaSegmentoTCP(pacote);
     				}
-    				// timeout de entrega de aplicação
     				
+    				// timeout de entrega de aplicação
     				else
     				{
     					PacoteTCP pacote = new PacoteTCP();
@@ -1089,6 +1094,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     					
     					// esvazia o buffer
     					String mensagemNoBuffer = new String(me.bufferRX);
+    					mensagemNoBuffer = mensagemNoBuffer.substring(0, me.numBytesBufferrizadosRX);
     					String dados = me.meFrame.getDadosRecebidos();
     					dados = dados.concat(mensagemNoBuffer);
     					me.numBytesBufferrizadosRX = 0;
