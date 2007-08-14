@@ -16,6 +16,8 @@ import br.usp.larc.tcp.ipsimulada.IpSimulada;
 import java.util.Timer;
 import java.util.TimerTask;
 
+import javax.swing.JOptionPane;
+
 /** 
  * Classe que representa a Mquina de Estado do seu Protocolo (que pode ter n).
  * Detalhes e dicas de implementao podem ser consultadas nas Apostilas.
@@ -147,7 +149,7 @@ public class MaquinaDeEstados {
      * Tamanho da janela de recepcao. O usuário pode mudar manualmente o valor dessa janela, mas por default vamos 
      * utilizar o valor de 100 bytes
      */
-    private int tamJanelaRecepcao = 5;
+    private int tamJanelaRecepcao = 12;
     
     /**
      * Tamanho da janela de recepcao do receptor remoto. Por default, coloquei 100 bytes, mas na verdade o receptor
@@ -231,10 +233,12 @@ public class MaquinaDeEstados {
      */
     private int numSeqRXAuxiliar = 0;
     
-    
+    private int janelaTransmissao = 0;
     
     private int inicioBufferRX = -1;
     private int fimBufferRX = 0;
+
+	private boolean timeOutTX;
     
     /** Construtor da classe MaquinaDeEstados */
     public MaquinaDeEstados() {
@@ -665,6 +669,10 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     				{
     					this.estadoMETX = TCPIF.TX_BLOCKED;
     					meFrame.setEstadoTX(TCPIF.TX_BLOCKED);
+    					
+    					// ativa timeout de Keep Alive
+    					this.ativaTimeOut(true);
+
     				}
     				if(this.pacoteRecebido.getJanela() > 0)
     				{
@@ -699,19 +707,22 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 	    					System.out.println("numSeqAux" + this.numSeqTXAuxiliar + " msg" + this.tamanhoTotalMensagem);
 	    					this.estadoMETX = TCPIF.TX_BLOCKED;
 	    					meFrame.setEstadoTX(TCPIF.TX_BLOCKED);
+	    					// timeout de KeepAlive
+	    					this.ativaTimeOut(true);
 	    				}
     				}
     				if(this.pacoteRecebido.getJanela() > 0)
     				{
     					// se nao faltam dados a serem transmitidos
 	    				// modificado celso if((this.numSeqTX + 1) == this.tamanhoTotalMensagem)
-    					if((this.numSeqTXAuxiliar) == this.tamanhoTotalMensagem)
+    					if((this.numBytesTransmitidos) == this.tamanhoTotalMensagem)
     					{
 	    					this.estadoMETX = TCPIF.IDLE;
 	    					meFrame.setEstadoTX(TCPIF.IDLE);
 	    					// celso
 	    					this.numSeqTXAuxiliar = 0;
-	    					this.numBytesBufferrizadosTX = 0;	    					
+	    					this.numBytesBufferrizadosTX = 0;	 
+	    					this.meFrame.setDados("");
     					}
     					// faltam dados a serem transmitidos
     					else
@@ -735,6 +746,9 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     				{
     					this.estadoMETX = TCPIF.TRASMITTING;
 						meFrame.setEstadoTX(TCPIF.TRASMITTING);
+						
+						//desativa timeout de keepAlive
+						this.cancelaTimeOut();
 					}
     			}	
     			
@@ -963,7 +977,7 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     		|| this.estadoMEConAtual.equals(TCPIF.FINWAIT_1) || this.estadoMEConAtual.equals(TCPIF.CLOSING)
     		|| this.estadoMEConAtual.equals(TCPIF.TIMEWAIT))
     	{
-    		this.ativaTimeOut();
+    		this.ativaTimeOut(false);
     	}
     	
     	// manda o pacote para a camada IP
@@ -975,13 +989,13 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
      * seja excedido
      *
      */
-    private void ativaTimeOut(){
+    private void ativaTimeOut(boolean timeOutTX){
 //    	if(this.oTimer != null)
 //    	{
 //    		this.oTimer = null;
 //    	}
     	this.oTimer = new Timer();
-    	this.oTimeOutTask = new TimeOutTask(this);
+    	this.oTimeOutTask = new TimeOutTask(this,timeOutTX);
     	oTimer.schedule(this.oTimeOutTask, tempoTimeout);
     }
     
@@ -993,9 +1007,12 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     public class TimeOutTask extends TimerTask {	
     	
     	private MaquinaDeEstados me;
+		private boolean timeOutTX;
     	
-    	public TimeOutTask(MaquinaDeEstados me){
+    	
+    	public TimeOutTask(MaquinaDeEstados me, boolean timeOutTX){
     		this.me = me;
+    		this.timeOutTX = timeOutTX;
     	}
     	
     	/**
@@ -1005,6 +1022,69 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
     		try {
     			//this.me.oTimer = null;
     			this.me.recebePrimitiva(TCPIF.P_TIMEOUT, null);
+    			
+    			// se for um timeout de transmissão, envia um ACK
+    			if(this.timeOutTX)
+    			{
+    				// timeout de Keep Alive
+    				if(me.estadoMETX.equals(TCPIF.TX_BLOCKED))
+    				{
+    					System.out.println("Timeout");
+    					me.tamJanelaRecepcao = 0;
+    					PacoteTCP pacote = new PacoteTCP();
+    					pacote.setControle(TCPIF.S_ACK);
+    					me.enviaSegmentoTCP(pacote);
+    	    			String segmento = me.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
+    	    			me.meFrame.atualizaDadosEstado(estadoMEConAtual, "." , "->", segmento);
+    	    			
+    	    			// reativa o timeout
+    	    			me.ativaTimeOut(true);
+    				}
+    				// timeout de retransmissão de dados
+    				else if(me.estadoMETX.equals(TCPIF.WAITING_ACK))
+    				{
+    					me.numBytesTransmitidos -= me.meFrame.getDados().length();
+    					me.numSeqTX -= me.meFrame.getDados().length();
+    				}
+    				// timeout de estado bloqueado
+    				else if(me.estadoMERX.equals(TCPIF.RX_BLOCKED))
+    				{
+    					PacoteTCP pacote = new PacoteTCP();
+    					pacote.setControle(TCPIF.S_ACK);
+    					// pega a Janela que o usuário disponibilizou
+    					me.tamJanelaRecepcao = 0;
+     					String textoSegmento = me.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
+    					me.meFrame.atualizaDadosEstado(estadoMERX, "." , "->", textoSegmento);
+    					me.enviaSegmentoTCP(pacote);
+    				}
+    				// timeout de entrega de aplicação
+    				else
+    				{
+    					PacoteTCP pacote = new PacoteTCP();
+    					pacote.setControle(TCPIF.S_ACK);
+    					// pega a Janela que o usuário disponibilizou
+    					me.tamJanelaRecepcao = me.meFrame.getJanela();
+     					String textoSegmento = me.atualizaSequencializacaoEnvio(TCPIF.S_ACK, pacote);
+    					me.meFrame.atualizaDadosEstado(estadoMERX, "." , "->", textoSegmento);
+    					me.enviaSegmentoTCP(pacote);
+    					
+    					// esvazia o buffer
+    					String mensagemNoBuffer = new String(me.bufferRX);
+    					String dados = me.meFrame.getDadosRecebidos();
+    					dados = dados.concat(mensagemNoBuffer);
+    					me.numBytesBufferrizadosRX = 0;
+    					me.fimBufferRX = 0;
+    					me.numSeqRXAuxiliar = 0;
+    					me.meFrame.setDadosRecebidos(dados);
+    					
+    					// atualiza ultimo byte lido pela camada de aplicação
+    					me.ultimoByteLido += mensagemNoBuffer.length();
+    					
+    					// reinicia a janela de recepcao
+    					me.tamJanelaRecepcao = me.bufferRX.length;
+    				}
+    			}
+    			
 			} catch (Exception e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
@@ -1315,23 +1395,22 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			
 			byte[] dadosSegmentoTX = new byte[tamDados];
 			
-//			while(this.numSeqTXAuxiliar< this.tamJanelaRemota && this.numSeqTXAuxiliar< tamanhoMensagem)
-		
-//			while(this.numSeqTXAuxiliar< tamanhoMensagem)
-//			{
-				// monta os dados para serem enviado por um segmento
-				// continua montando ate o espaco para dados do segmento encher
-				// ou ate o numero de bytes da mensagem inteira se esgotar
+			// controle do tamanho da mensagem e da janela de transmissão
+			while(this.numBytesTransmitidos<tamanhoMensagem && this.janelaTransmissao<this.tamJanelaRemota)
+			{
+				// controle de tamanho da mensagem e tamanho do segmento
 				int i;
-				for(i = 0; i < tamDados && this.numSeqTXAuxiliar < tamanhoMensagem && 
-						this.numBytesTransmitidos < this.tamJanelaRemota; i++)
+				for(i = 0; i < tamDados && this.numBytesTransmitidos < tamanhoMensagem && 
+						this.numSeqTXAuxiliar < tamDados && this.janelaTransmissao<this.tamJanelaRemota; i++)
 				{	
-					dadosSegmentoTX[i] = this.bufferTX[this.numSeqTXAuxiliar];
-					this.numSeqTXAuxiliar++;
-					// variável usada para ver se a janela de recepção remota vai estourar
+					dadosSegmentoTX[i] = this.bufferTX[this.numBytesTransmitidos];
 					this.numBytesTransmitidos++;
+					// controle se sequência
+					this.numSeqTXAuxiliar++;
+					this.janelaTransmissao++;
 				}
 				
+				// caso ocorreu segmentação ou acabou de enviar todos os bytes, envia o segmento
 				PacoteTCP pacote = new PacoteTCP();
 				String dados = new String(dadosSegmentoTX);
 				dados = dados.substring(0, i);
@@ -1339,29 +1418,26 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 				String segmento = this.atualizaSequencializacaoEnvio(TCPIF.S_TX, pacote);
 				this.meFrame.atualizaDadosEstado(estadoMETX, "." , "->", segmento);
 				this.enviaSegmentoTCP(pacote);
+				// controle se sequencia
 				this.numSeqTX += this.numSeqTXAuxiliar + 1;
-//			}
+				this.numSeqTXAuxiliar = 0;
+			}
+			
 			
 			//trata evento de quando todos os dados foram transmitidos
-			if(this.numSeqTXAuxiliar == this.tamanhoTotalMensagem)
+			if(this.numBytesTransmitidos == this.tamanhoTotalMensagem)
 			{
 				this.estadoMETX = TCPIF.WAITING_ACK;
 				meFrame.setEstadoTX(TCPIF.WAITING_ACK);
-				//this.numSeqTXAuxiliar = 0;
 			}
 			// trata evento de estouro da janela de recepcao do receptor remoto
 			else if(this.numBytesTransmitidos == this.tamJanelaRemota)
 			{
 				this.estadoMETX = TCPIF.WAITING_ACK;
 				meFrame.setEstadoTX(TCPIF.WAITING_ACK);
+				this.janelaTransmissao = 0;
 			}
-			
-			this.numBytesTransmitidos = 0;
-		}
-		// todos os dados já foram transmitidos
-		else if(this.estadoMETX.equals(TCPIF.IDLE))
-		{
-			
+		
 		}
 	}
 	
@@ -1378,6 +1454,9 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 			int tamanhoDados = this.pacoteRecebido.getDados().getBytes().length;
 			byte[] mensagemBytes = this.pacoteRecebido.getDados().getBytes();
 
+			// cancela o timeOut de entrega de aplicação
+			this.cancelaTimeOut();
+			
 			// copia cada byte do segmento recebido para o buffer de recepcao
 			for(int i=0; i<tamanhoDados; i++)
 			{
@@ -1458,6 +1537,8 @@ Decoder.ipSimuladoToBytePonto(ipSimuladoDestino), portaDestino + "");
 				this.enviaSegmentoTCP(pacote);
 			}
 			
+			// ativa timeout de aplicação
+			this.ativaTimeOut(true);
 			
 		}
 	}
